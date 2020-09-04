@@ -1,84 +1,122 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Data.SqlClient;
+using System.Data;
 
+/// <summary>
+/// a possible solution to the library processor refactoring problem.
+/// </summary>
 namespace LibraryProcessor
 {
     /// <summary>
-    /// This class processes book objects in order. This code is pretty sloppy though, 
-    /// and is nearly impossible to unit test. Please refactor it as much as you feel is necessary
+    /// We want to use interfaces so we can utilize an IOC container and mock objects for testing
     /// </summary>
-    public class LibraryProcessor
+    public interface IBookRepository
+    {
+        Book GetNext();
+    }
+
+    public class BookRepository : IBookRepository
     {
         private readonly Queue<Book> _inQueue = new Queue<Book>();
+        private object _lockObj = new object();
 
-        public LibraryProcessor()
+        public BookRepository(IDbConnection conn) //inject the sql connection to remove dependency
         {
-            var sqlConnection = new SqlConnection("ConnectionString");
-            /*
-             * Here would be code to populate the _inQueue from the database if necessary
-             */
+           /*
+            * Here would be code to populate the _inQueue from the database if necessary
+            */
         }
 
-        private Book GetNext()
+        public Book GetNext()
         {
-            if (_inQueue.Count == 0)
+            lock (_lockObj) //makes the book repository thread safe
             {
-                return null;
+                if (_inQueue.Count == 0)
+                {
+                    return null;
+                }
+                else
+                {
+                    return _inQueue.Dequeue();
+                }
             }
-            else
-            {
-                return _inQueue.Dequeue();
-            }
+        }
+    }
+    public class LibraryProcessor
+    {
+        private IBookRepository _bookRepo;
+
+        public LibraryProcessor(IBookRepository bookRepo) //decouple the book queue from the actual processor
+        {
+            _bookRepo = bookRepo;
         }
 
         public void ProcessBooks()
         {
-            var book = GetNext();
+            var book = _bookRepo.GetNext();
             while (book != null)
             {
-                switch (book.Type)
-                {
-                    case 1: //print
-                        if(DateTime.Now - book.CheckoutDate > TimeSpan.FromDays(14))
-                        {
-                            book.Status = "Overdue";
-                        }
-                        else
-                        {
-                            book.Status = "Not Overdue";
-                        }
-                        break;
-                    case 2: //ebook
-                        if (DateTime.Now - book.CheckoutDate > TimeSpan.FromDays(20))
-                        {
-                            book.Status = "Overdue";
-                        }
-                        else
-                        {
-                            book.Status = "Not Overdue";
-                        }
-                        break;
-                    case 3: //audiobook
-                        if (DateTime.Now - book.CheckoutDate > TimeSpan.FromDays(10))
-                        {
-                            book.Status = "Overdue";
-                        }
-                        else
-                        {
-                            book.Status = "Not Overdue";
-                        }
-                        break;
-                }
-                book = GetNext();
+                //refactor the different book types into distinct class implementations
+                //each implementation encapsulates the update status logic.
+                book.UpdateStatus(); 
+                
+                book = _bookRepo.GetNext();
             }
         }
     }
-    public class Book
+    public abstract class Book
     {
+        protected readonly string _overdueStatus = "Overdue";
+        protected readonly string _notOverdueStatus = "Not Overdue";
         public int Id { get; set; }
-        public int Type { get; set; }
         public DateTime CheckoutDate { get; set; }
         public string Status { get; set; }
+
+        public abstract void UpdateStatus();
+    }
+
+    class AudioBook : Book
+    {
+        public override void UpdateStatus()
+        {
+            if (DateTime.Now - CheckoutDate > TimeSpan.FromDays(10))
+            {
+                Status = _overdueStatus;
+            }
+            else
+            {
+                Status = _notOverdueStatus;
+            }
+        }
+    }
+
+    class EBook : Book
+    {
+        public override void UpdateStatus()
+        {
+            if (DateTime.Now - CheckoutDate > TimeSpan.FromDays(20))
+            {
+                Status = _overdueStatus;
+            }
+            else
+            {
+                Status = _notOverdueStatus;
+            }
+        }
+    }
+
+    public class PrintBook : Book
+    {
+        public override void UpdateStatus()
+        {
+            if (DateTime.Now - CheckoutDate > TimeSpan.FromDays(14))
+            {
+                Status = _overdueStatus;
+            }
+            else
+            {
+                Status = _notOverdueStatus;
+            }
+        }
     }
 }
