@@ -5,6 +5,22 @@ using System.Data.SqlClient;
 namespace LibraryProcessor
 {
     /// <summary>
+    /// POCO object that represents a book in the system.
+    /// </summary>
+    public class Book
+    {
+        public int Id { get; set; }
+        /// <summary>
+        /// 1 - print
+        /// 2 - ebook
+        /// 3 - audio
+        /// </summary>
+        public int Type { get; set; }
+        public DateTime CheckoutDate { get; set; }
+        public string Status { get; set; }
+    }
+
+    /// <summary>
     /// This class processes book objects in order. This code is pretty sloppy though, 
     /// and is nearly impossible to unit test. Please refactor it as much as you feel is necessary
     /// </summary>
@@ -14,9 +30,9 @@ namespace LibraryProcessor
 
         public LibraryProcessor()
         {
-            var sqlConnection = new SqlConnection("ConnectionString");
+            var sqlConnection = new SqlConnection("Data Source = database.server.com; Initial Catalog = DB; user id = admin; password = 12345;");
             /*
-             * Here would be code to populate the _inQueue from the database if necessary
+             * Here would be code to populate the _inQueue from the database.
              */
         }
 
@@ -31,7 +47,9 @@ namespace LibraryProcessor
                 return _inQueue.Dequeue();
             }
         }
-
+        /// <summary>
+        /// Update the statuses of books in the queue
+        /// </summary>
         public void ProcessBooks()
         {
             var book = GetNext();
@@ -39,7 +57,7 @@ namespace LibraryProcessor
             {
                 switch (book.Type)
                 {
-                    case 1: //print
+                    case 1: //print books are overdue after 14 days
                         if(DateTime.Now - book.CheckoutDate > TimeSpan.FromDays(14))
                         {
                             book.Status = "Overdue";
@@ -49,7 +67,7 @@ namespace LibraryProcessor
                             book.Status = "Not Overdue";
                         }
                         break;
-                    case 2: //ebook
+                    case 2: //ebooks are overdue after 20 days
                         if (DateTime.Now - book.CheckoutDate > TimeSpan.FromDays(20))
                         {
                             book.Status = "Overdue";
@@ -59,7 +77,7 @@ namespace LibraryProcessor
                             book.Status = "Not Overdue";
                         }
                         break;
-                    case 3: //audiobook
+                    case 3: //audiobooks are overdue after 10 days
                         if (DateTime.Now - book.CheckoutDate > TimeSpan.FromDays(10))
                         {
                             book.Status = "Overdue";
@@ -74,11 +92,5 @@ namespace LibraryProcessor
             }
         }
     }
-    public class Book
-    {
-        public int Id { get; set; }
-        public int Type { get; set; }
-        public DateTime CheckoutDate { get; set; }
-        public string Status { get; set; }
-    }
+
 }
