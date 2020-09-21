@@ -26,33 +26,19 @@ namespace LibraryProcessor
     /// </summary>
     public class LibraryProcessor
     {
-        private readonly Queue<Book> _inQueue = new Queue<Book>();
+        private readonly BookProcessorQueue _inQueue;
 
         public LibraryProcessor()
         {
             var sqlConnection = new SqlConnection("Data Source = database.server.com; Initial Catalog = DB; user id = admin; password = 12345;");
-            /*
-             * Here would be code to populate the _inQueue from the database.
-             */
-        }
-
-        private Book GetNext()
-        {
-            if (_inQueue.Count == 0)
-            {
-                return null;
-            }
-            else
-            {
-                return _inQueue.Dequeue();
-            }
+            _inQueue = new BookProcessorQueue(sqlConnection);
         }
         /// <summary>
         /// Update the statuses of books in the queue
         /// </summary>
         public void ProcessBooks()
         {
-            var book = GetNext();
+            var book = _inQueue.GetNext();
             while (book != null)
             {
                 switch (book.Type)
@@ -88,7 +74,7 @@ namespace LibraryProcessor
                         }
                         break;
                 }
-                book = GetNext();
+                book = _inQueue.GetNext();
             }
         }
     }
